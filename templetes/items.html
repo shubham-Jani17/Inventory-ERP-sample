@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+{% block title %}Items Master{% endblock %}
+{% block page_title %}Items Master{% endblock %}
+{% block breadcrumb %}Home / Items{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-primary" onclick="openModal('addItemModal')">+ Add Item</button>
+{% endblock %}
+
+{% block content %}
+
+<!-- FILTERS -->
+<div class="filter-bar">
+  <form method="GET" class="filter-form">
+    <input type="text" name="search" value="{{ search }}" placeholder="Search by name or code…" class="input-field"/>
+    <select name="category" class="input-field">
+      <option value="">All Categories</option>
+      {% for cat in categories %}
+      <option value="{{ cat.category }}" {% if cat.category == selected_category %}selected{% endif %}>
+        {{ cat.category }}
+      </option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary">Filter</button>
+    <a href="{{ url_for('items') }}" class="btn btn-ghost">Clear</a>
+  </form>
+  <div class="result-count">{{ items|length }} item(s)</div>
+</div>
+
+<!-- ITEMS TABLE -->
+<div class="card">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Item Code</th>
+        <th>Item Name</th>
+        <th>Category</th>
+        <th>Qty</th>
+        <th>Unit</th>
+        <th>Reorder Lvl</th>
+        <th>Rate (₹)</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td class="mono text-accent">{{ item.item_code }}</td>
+        <td class="fw-500">{{ item.item_name }}</td>
+        <td><span class="tag">{{ item.category }}</span></td>
+        <td class="mono fw-600 {% if item.quantity <= item.reorder_level %}text-danger{% endif %}">
+          {{ item.quantity }}
+        </td>
+        <td class="text-muted">{{ item.unit }}</td>
+        <td class="mono text-muted">{{ item.reorder_level }}</td>
+        <td class="mono">{{ "{:,.2f}".format(item.rate) }}</td>
+        <td>
+          {% if item.quantity == 0 %}
+            <span class="badge badge-out">Out of Stock</span>
+          {% elif item.quantity <= item.reorder_level %}
+            <span class="badge badge-warn">Low Stock</span>
+          {% else %}
+            <span class="badge badge-in">In Stock</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="action-btns">
+            <button class="btn-icon" title="Edit"
+              onclick="openEditModal({{ item.id }}, '{{ item.item_name }}', '{{ item.category }}', '{{ item.unit }}', {{ item.reorder_level }}, {{ item.rate }})">
+              ✏️
+            </button>
+            <form method="POST" action="{{ url_for('delete_item', item_id=item.id) }}"
+              onsubmit="return confirm('Delete {{ item.item_name }}?')">
+              <button class="btn-icon danger" title="Delete">🗑️</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="9" class="empty-row">No items found. Add your first item!</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ─── ADD ITEM MODAL ─── -->
+<div id="addItemModal" class="modal-overlay" onclick="closeModal('addItemModal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Add New Item</h3>
+      <button class="modal-close" onclick="closeModal('addItemModal')">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('add_item') }}">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Item Code *</label>
+          <input type="text" name="item_code" class="input-field" placeholder="e.g. ITEM-008" required/>
+        </div>
+        <div class="form-group">
+          <label>Item Name *</label>
+          <input type="text" name="item_name" class="input-field" placeholder="e.g. Wireless Mouse" required/>
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <input type="text" name="category" class="input-field" placeholder="e.g. Electronics"/>
+        </div>
+        <div class="form-group">
+          <label>Unit</label>
+          <select name="unit" class="input-field">
+            <option>Nos</option><option>Box</option><option>Ream</option>
+            <option>Kg</option><option>Litre</option><option>Meter</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Opening Quantity</label>
+          <input type="number" name="quantity" class="input-field" value="0" min="0"/>
+        </div>
+        <div class="form-group">
+          <label>Reorder Level</label>
+          <input type="number" name="reorder_level" class="input-field" value="10" min="0"/>
+        </div>
+        <div class="form-group full-width">
+          <label>Rate per Unit (₹)</label>
+          <input type="number" name="rate" class="input-field" value="0" step="0.01" min="0"/>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('addItemModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Item</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ─── EDIT ITEM MODAL ─── -->
+<div id="editItemModal" class="modal-overlay" onclick="closeModal('editItemModal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Edit Item</h3>
+      <button class="modal-close" onclick="closeModal('editItemModal')">✕</button>
+    </div>
+    <form method="POST" id="editForm">
+      <div class="form-grid">
+        <div class="form-group full-width">
+          <label>Item Name *</label>
+          <input type="text" name="item_name" id="edit_item_name" class="input-field" required/>
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <input type="text" name="category" id="edit_category" class="input-field"/>
+        </div>
+        <div class="form-group">
+          <label>Unit</label>
+          <select name="unit" id="edit_unit" class="input-field">
+            <option>Nos</option><option>Box</option><option>Ream</option>
+            <option>Kg</option><option>Litre</option><option>Meter</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Reorder Level</label>
+          <input type="number" name="reorder_level" id="edit_rl" class="input-field" min="0"/>
+        </div>
+        <div class="form-group">
+          <label>Rate per Unit (₹)</label>
+          <input type="number" name="rate" id="edit_rate" class="input-field" step="0.01" min="0"/>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('editItemModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openEditModal(id, name, category, unit, rl, rate) {
+  document.getElementById('edit_item_name').value = name;
+  document.getElementById('edit_category').value = category;
+  document.getElementById('edit_rl').value = rl;
+  document.getElementById('edit_rate').value = rate;
+  const sel = document.getElementById('edit_unit');
+  for (let o of sel.options) { if (o.value === unit) o.selected = true; }
+  document.getElementById('editForm').action = `/items/edit/${id}`;
+  openModal('editItemModal');
+}
+</script>
+{% endblock %}

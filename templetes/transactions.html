@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% block title %}Transactions{% endblock %}
+{% block page_title %}Transactions{% endblock %}
+{% block breadcrumb %}Home / Transactions{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-primary" onclick="openModal('addTxnModal')">+ New Transaction</button>
+{% endblock %}
+
+{% block content %}
+
+<!-- FILTERS -->
+<div class="filter-bar">
+  <form method="GET" class="filter-form">
+    <select name="type" class="input-field">
+      <option value="">All Types</option>
+      <option value="IN"  {% if selected_type == 'IN' %}selected{% endif %}>Stock IN</option>
+      <option value="OUT" {% if selected_type == 'OUT'%}selected{% endif %}>Stock OUT</option>
+    </select>
+    <select name="item_id" class="input-field">
+      <option value="">All Items</option>
+      {% for item in items %}
+      <option value="{{ item.id }}" {% if selected_item == item.id|string %}selected{% endif %}>
+        {{ item.item_code }} — {{ item.item_name }}
+      </option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary">Filter</button>
+    <a href="{{ url_for('transactions') }}" class="btn btn-ghost">Clear</a>
+  </form>
+  <div class="result-count">{{ transactions|length }} record(s)</div>
+</div>
+
+<!-- TRANSACTIONS TABLE -->
+<div class="card">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Item</th>
+        <th>Type</th>
+        <th>Quantity</th>
+        <th>Date</th>
+        <th>Note</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in transactions %}
+      <tr>
+        <td class="mono text-muted">{{ t.id }}</td>
+        <td>
+          <div class="item-cell">
+            <span class="item-code">{{ t.item_code }}</span>
+            <span class="item-name">{{ t.item_name }}</span>
+          </div>
+        </td>
+        <td>
+          <span class="badge badge-{{ 'in' if t.transaction_type == 'IN' else 'out' }}">
+            {{ '↑ Stock IN' if t.transaction_type == 'IN' else '↓ Stock OUT' }}
+          </span>
+        </td>
+        <td class="mono fw-600">
+          <span class="{{ 'text-success' if t.transaction_type == 'IN' else 'text-danger' }}">
+            {{ '+' if t.transaction_type == 'IN' else '-' }}{{ t.quantity }} {{ t.unit }}
+          </span>
+        </td>
+        <td class="mono text-muted">{{ t.date }}</td>
+        <td class="text-muted">{{ t.note or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="empty-row">No transactions found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ADD TRANSACTION MODAL -->
+<div id="addTxnModal" class="modal-overlay" onclick="closeModal('addTxnModal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>New Transaction</h3>
+      <button class="modal-close" onclick="closeModal('addTxnModal')">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('add_transaction') }}">
+      <div class="form-grid">
+        <div class="form-group full-width">
+          <label>Select Item *</label>
+          <select name="item_id" class="input-field" required>
+            <option value="">— Select an item —</option>
+            {% for item in items %}
+            <option value="{{ item.id }}">{{ item.item_code }} — {{ item.item_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Transaction Type *</label>
+          <select name="transaction_type" class="input-field" required>
+            <option value="IN">↑ Stock IN (Received)</option>
+            <option value="OUT">↓ Stock OUT (Issued)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Quantity *</label>
+          <input type="number" name="quantity" class="input-field" min="1" required placeholder="Enter quantity"/>
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" name="date" class="input-field" id="txnDate"/>
+        </div>
+        <div class="form-group full-width">
+          <label>Note / Reason</label>
+          <input type="text" name="note" class="input-field" placeholder="e.g. Issued to Marketing dept"/>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('addTxnModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Transaction</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Set today's date as default
+  document.getElementById('txnDate').valueAsDate = new Date();
+</script>
+{% endblock %}
