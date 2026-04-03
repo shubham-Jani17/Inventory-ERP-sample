@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block breadcrumb %}Home / Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- STAT CARDS -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon blue">📦</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ total_items }}</div>
+      <div class="stat-label">Total Items</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green">📈</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ total_stock }}</div>
+      <div class="stat-label">Total Stock Units</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon red">⚠️</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ low_stock }}</div>
+      <div class="stat-label">Low Stock Alerts</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon yellow">💰</div>
+    <div class="stat-info">
+      <div class="stat-value">₹{{ "{:,.0f}".format(total_value) }}</div>
+      <div class="stat-label">Total Stock Value</div>
+    </div>
+  </div>
+</div>
+
+<div class="dash-grid">
+
+  <!-- RECENT TRANSACTIONS -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Recent Transactions</h2>
+      <a href="{{ url_for('transactions') }}" class="btn-link">View All →</a>
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Type</th>
+          <th>Qty</th>
+          <th>Date</th>
+          <th>Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in recent_txns %}
+        <tr>
+          <td>
+            <div class="item-cell">
+              <span class="item-code">{{ t.item_code }}</span>
+              <span class="item-name">{{ t.item_name }}</span>
+            </div>
+          </td>
+          <td>
+            <span class="badge badge-{{ 'in' if t.transaction_type == 'IN' else 'out' }}">
+              {{ '↑ IN' if t.transaction_type == 'IN' else '↓ OUT' }}
+            </span>
+          </td>
+          <td class="mono">{{ t.quantity }}</td>
+          <td class="mono text-muted">{{ t.date }}</td>
+          <td class="text-muted">{{ t.note or '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="empty-row">No transactions yet</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- LOW STOCK PANEL -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">⚠ Low Stock Items</h2>
+      <a href="{{ url_for('items') }}" class="btn-link">Manage →</a>
+    </div>
+
+    {% if low_stock_items %}
+      {% for item in low_stock_items %}
+      <div class="low-stock-item">
+        <div class="ls-info">
+          <div class="ls-name">{{ item.item_name }}</div>
+          <div class="ls-code">{{ item.item_code }} · {{ item.category }}</div>
+        </div>
+        <div class="ls-qty">
+          <div class="ls-current {% if item.quantity == 0 %}zero{% endif %}">{{ item.quantity }}</div>
+          <div class="ls-reorder">Min: {{ item.reorder_level }}</div>
+        </div>
+        <div class="ls-bar-wrap">
+          {% set pct = [((item.quantity / item.reorder_level) * 100)|int, 100]|min %}
+          <div class="ls-bar">
+            <div class="ls-fill {% if item.quantity == 0 %}fill-zero{% elif pct < 50 %}fill-low{% endif %}"
+                 style="width: {{ pct }}%"></div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">✅ All items are well-stocked!</div>
+    {% endif %}
+
+    <!-- Category Chart -->
+    {% if category_data %}
+    <div class="card-header" style="margin-top:24px; padding-top:20px; border-top:1px solid var(--border)">
+      <h2 class="card-title">Stock by Category</h2>
+    </div>
+    <div class="category-chart">
+      {% set max_qty = category_data|map(attribute='total')|max %}
+      {% for cat in category_data %}
+      <div class="cat-row">
+        <div class="cat-label">{{ cat.category }}</div>
+        <div class="cat-bar-wrap">
+          <div class="cat-bar" style="width: {{ ((cat.total / max_qty) * 100)|int }}%"></div>
+        </div>
+        <div class="cat-value mono">{{ cat.total }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
